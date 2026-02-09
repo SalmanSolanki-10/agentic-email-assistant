@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Email Agent Dashboard</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; min-width: 260px; }
+    .muted { color: #6b7280; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border-bottom: 1px solid #eee; text-align: left; padding: 8px; vertical-align: top; }
+    th { background: #fafafa; position: sticky; top: 0; }
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; }
+  </style>
+</head>
+<body>
+  <h2>Email Agent Dashboard</h2>
+  <div class="muted">Monitored account: {{ email or "(not configured)" }}</div>
+
+  <div class="row" style="margin-top: 16px;">
+    <div class="card">
+      <div class="muted">Total processed</div>
+      <div id="total" style="font-size: 28px; font-weight: 700;">—</div>
+    </div>
+    <div class="card">
+      <div class="muted">Avg processing time</div>
+      <div id="avg" style="font-size: 28px; font-weight: 700;">—</div>
+    </div>
+    <div class="card">
+      <div class="muted">Reply success rate</div>
+      <div id="rate" style="font-size: 28px; font-weight: 700;">—</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 22px;">Recent interactions</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 180px;">Time</th>
+        <th style="width: 220px;">From</th>
+        <th style="width: 260px;">Subject</th>
+        <th>Reply</th>
+        <th style="width: 120px;">Status</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+<script>
+async function refresh() {
+  const stats = await fetch("/api/stats").then(r => r.json());
+  document.getElementById("total").textContent = stats.total_processed ?? 0;
+  document.getElementById("avg").textContent = (stats.avg_processing_time ?? 0).toFixed(2) + "s";
+  document.getElementById("rate").textContent = (stats.reply_success_rate ?? 0).toFixed(1) + "%";
+
+  const interactions = await fetch("/api/interactions").then(r => r.json());
+  const rows = document.getElementById("rows");
+  rows.innerHTML = "";
+  (interactions || []).slice().reverse().slice(0, 30).forEach(i => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${(i.timestamp || "").replace("T"," ").slice(0,19)}</td>
+      <td>${i.sender || ""}</td>
+      <td>${i.subject || ""}</td>
+      <td><pre>${i.response || ""}</pre></td>
+      <td>${i.reply_sent ? "sent" : "not sent"}</td>
+    `;
+    rows.appendChild(tr);
+  });
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>
